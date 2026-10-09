@@ -24,6 +24,8 @@ OBD-Buchse ── WiCAN (ELM327-Emulation, TCP 23) ── pyscript in HA ── 
 
 Der WiCAN nimmt nur **eine** TCP-Verbindung an. Für Tests am PC das Polling pausieren.
 
+**Empfohlene Steuerung:** Polling über D+ (Motor läuft). Das Motor-SG antwortet nur bei Kl. 15 und verstummt mit dem Startknopf sofort; Diagnose-Anfragen wecken es nicht. Die Weckprobe ist deshalb nur ein Rückfall. Der WiCAN selbst hängt an Dauerplus und sollte über seinen Sleep Mode schlafen, solange die Lichtmaschine nicht lädt.
+
 ## Hardware
 
 * WiCAN-USB (non-Pro), Firmware 4.21 (WiCAN-OBD sollte gleich funktionieren)
@@ -49,6 +51,7 @@ Prüfwerte: Pin 16–5 = Batteriespannung; Pin 6 und 14 gegen GND je ≈ 2.5 V b
 | MQTT | Disable |
 | Webhook | Disable |
 | Automate: Standard PIDs | Disable |
+| Sleep Mode | Enable, Schwelle zwischen Ruhespannung und Ladespannung (Lichtmaschine ≈ 14.7 V) |
 
 AutoPID/Webhook und pyscript teilen sich sonst die ELM-Emulation und verstellen sich gegenseitig die Header.
 
@@ -137,7 +140,7 @@ Löschen (`14 FF FF 33`) wird mit `54` quittiert, wirkt am Motor-SG aber nicht �
 
 ## Stolpersteine
 
-* **Windows-telnet** ist ungeeignet (WiCAN schliesst Zeilen nur mit CR). PowerShell mit `TcpClient` verwenden.
+* **Windows-telnet** ist ungeeignet (WiCAN schliesst Zeilen nur mit CR). Stattdessen `examples/wican_test.ps1` verwenden (`-Dtc` für Fehlercodes).
 * **Linux `nc`** sendet nur LF, der ELM wartet dann ewig → `socat …,crlf`.
 * **Nur Emissionsdaten:** WWH-OBD sieht keine Fehler in Airbag, ESP, Komfort oder Aufbau.
 * **Kein Nachlauf:** Mit dem Startknopf verstummt das Motor-SG sofort; Anfragen wecken es nicht.
