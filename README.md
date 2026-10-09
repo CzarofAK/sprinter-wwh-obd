@@ -133,9 +133,13 @@ A, B, … = Datenbytes nach `62 F4 xx`. «Motor» = nur bei laufendem Motor abge
 * ELM-Initialisierung: `ATZ`, `ATE0`, `ATH1`, `ATSP7` (29 bit, 500k), `ATCP18`
 * Multi-Frame (ISO-TP) erledigt die ELM-Emulation selbst; das pyscript setzt die Frames aus der `ATH1`-Ausgabe zusammen.
 
-### Fehlercodes (in Arbeit)
+### Fehlercodes
 
-`19 42 33 FF FF` (ReadDTCInformation, WWH-OBD, Gruppe 33 Emissionen). Antwortet zuerst mit `7F 19 78` (responsePending) → Timeout mit `ATAT0` + `ATSTFF` verlängern. DTC-Format `04` = SAE J2012-DA (P-Codes). 0x5D unterstützt Gruppe 33 nicht (`7F 19 31`).
+`19 42 33 FF FF` (ReadDTCInformation, WWH-OBD, Gruppe 33 Emissionen), physikalisch an 0x58, 0x59 und 0x5D – nach dem Aufwachen sofort, danach alle `DTC_S` (300 s). Die SGs antworten zuerst mit `7F 19 78` (responsePending) → das Skript setzt dafür kurz `ATAT0` + `ATSTFF` und danach wieder `ATST32` + `ATAT1`. DTC-Format `04` = SAE J2012-DA (P-Codes). 0x5D unterstützt Gruppe 33 nicht (`7F 19 31`) und liefert eine leere Liste.
+
+Antwort: `59 42` · Gruppe · Status-Maske · Severity-Maske · Format · je Eintrag 5 Byte (Severity, DTC High, DTC Mid, Failure-Type, Status). DTC High: Bit 7–6 Buchstabe (P/C/B/U), Bit 5–4 erste Ziffer.
+
+**Sensor «Fehlercodes gespeichert»** (`sprinter/dtc`): Anzahl aller Codes; Attribute `codes` (z.B. `P13E7 (gespeichert)`), `details` (SG, Status-Bits, Severity, FTB) und `gelesen` (Zeitpunkt). Status-Bits: `aktiv` = testFailed (0x01), `ausstehend` = pending (0x04), `gespeichert` = confirmed (0x08), `MIL` (0x80). Der bestehende Sensor «Fehlercodes Anzahl» (F401) zählt nur MIL-relevante Codes.
 
 Löschen (`14 FF FF 33`) wird mit `54` quittiert, wirkt am Motor-SG aber nicht – nicht implementiert.
 

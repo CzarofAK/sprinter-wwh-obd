@@ -15,6 +15,8 @@ PROBE_S      = 120                # Weckprobe wenn schlafend
 POLL_SWITCH  = "input_boolean.sprinter_polling"
 EXPERIMENTAL = True               # DIDs am 08.10.2026 verifiziert (KB FR-A-11)
 PROBE        = (0x58, 0x42)       # Bordspannung am Motor-SG
+DTC_S        = 300                # Fehlercodes lesen (wach), sofort nach dem Aufwachen
+DTC_ECUS     = (0x58, 0x59, 0x5D) # 0x5D unterstützt Gruppe 33 nicht (7F 19 31) -> leer
 
 # key, ECU, DID, Name, Einheit, device_class, Gruppe, experimentell
 SENSORS = [
@@ -90,9 +92,9 @@ def elm_close(writer):
 
 
 @pyscript_compile
-def parse(resp, ecu, did):
-    """ISO-TP-Frames (ATH1-Ausgabe) einer ECU zusammensetzen -> Daten nach 62 F4 xx"""
-    data, need = [], None
+def iso_msgs(resp, ecu):
+    """ISO-TP-Frames (ATH1-Ausgabe) einer ECU zu vollständigen Nachrichten zusammensetzen"""
+    msgs, data, need = [], [], None
     for line in resp.replace("\n", "\r").split("\r"):
         t = line.split()
         if len(t) < 3 or len(t[0]) != 8 or not t[0].upper().endswith("%02X" % ecu):
@@ -102,18 +104,75 @@ def parse(resp, ecu, did):
         except ValueError:
             continue
         typ = b[0] >> 4
-        if typ == 0:
-            need, data = b[0], b[1:1 + b[0]]
-        elif typ == 1:
+        if typ == 0:                                   # Single Frame
+            msgs.append(b[1:1 + (b[0] & 0x0F)])
+            need = None
+        elif typ == 1 and len(b) >= 2:                 # First Frame
             need, data = ((b[0] & 0x0F) << 8) | b[1], b[2:8]
-        elif typ == 2:
+        elif typ == 2 and need is not None:            # Consecutive Frame
             data += b[1:8]
-    if need is None:
-        return None
-    p = data[:need]
-    if len(p) < 4 or p[0] != 0x62 or p[1] != 0xF4 or p[2] != did:
-        return None
-    return p[3:]
+        if need is not None and len(data) >= need:
+            msgs.append(data[:need])
+            need = None
+    return msgs
+
+
+@pyscript_compile
+def parse(resp, ecu, did):
+    """Antwort auf 22 F4 xx -> Datenbytes nach 62 F4 xx (letzte passende Nachricht)"""
+    for p in reversed(iso_msgs(resp, ecu)):
+        if len(p) >= 4 and p[0] == 0x62 and p[1] == 0xF4 and p[2] == did:
+            return p[3:]
+    return None
+
+
+@pyscript_compile
+def dtc_name(hi, mid):
+    """SAE J2012-DA: High-Byte Bit 7-6 = Buchstabe, Bit 5-4 = erste Ziffer"""
+    return "%s%d%X%02X" % ("PCBU"[hi >> 6], (hi >> 4) & 0x03, hi & 0x0F, mid)
+
+
+@pyscript_compile
+def parse_dtc(resp, ecu):
+    """Antwort auf 19 42 33 FF FF -> Liste von Fehlercodes, [] = keine, None = keine Antwort"""
+    for p in reversed(iso_msgs(resp, ecu)):
+        if len(p) >= 3 and p[0] == 0x7F and p[1] == 0x19:
+            if p[2] == 0x78:                           # responsePending, weiter suchen
+                continue
+            return []                                  # z.B. 7F 19 31: Gruppe nicht unterstützt
+        if len(p) >= 6 and p[0] == 0x59 and p[1] == 0x42:
+            if p[5] != 0x04:                           # nur J2012-DA (Format 04) dekodiert
+                return [{"code": "Format %02X" % p[5], "ecu": "%02X" % ecu}]
+            out = []
+            for i in range(6, len(p) - 4, 5):
+                sev, hi, mid, ftb, st = p[i:i + 5]
+                out.append({
+                    "code": dtc_name(hi, mid),
+                    "ftb": "%02X" % ftb,
+                    "ecu": "%02X" % ecu,
+                    "status": "%02X" % st,
+                    "severity": "%02X" % sev,
+                    "aktiv": bool(st & 0x01),          # testFailed
+                    "ausstehend": bool(st & 0x04),     # pendingDTC
+                    "bestaetigt": bool(st & 0x08),     # confirmedDTC
+                    "mil": bool(st & 0x80),            # warningIndicatorRequested
+                })
+            return out
+    return None
+
+
+@pyscript_compile
+def dtc_label(c):
+    flags = []
+    if c.get("aktiv"):
+        flags.append("aktiv")
+    if c.get("bestaetigt"):
+        flags.append("gespeichert")
+    if c.get("ausstehend"):
+        flags.append("ausstehend")
+    if c.get("mil"):
+        flags.append("MIL")
+    return "%s (%s)" % (c["code"], ", ".join(flags) if flags else "Status " + c.get("status", "?"))
 
 
 @pyscript_compile
@@ -180,6 +239,37 @@ def read_did(conn, ecu, did):
     return parse(elm_cmd(conn["r"], conn["w"], "22F4%02X" % did), ecu, did)
 
 
+def read_dtcs(conn):
+    """Fehlercodes aller DTC_ECUS lesen; None, wenn kein SG geantwortet hat"""
+    codes, answered = [], False
+    elm_cmd(conn["r"], conn["w"], "ATAT0")             # SGs antworten zuerst mit 7F 19 78:
+    elm_cmd(conn["r"], conn["w"], "ATSTFF")            # Timeout auf Maximum, sonst Abbruch
+    try:
+        for ecu in DTC_ECUS:
+            h = "DA%02XF1" % ecu
+            if conn["hdr"] != h:
+                elm_cmd(conn["r"], conn["w"], "ATSH" + h)
+                conn["hdr"] = h
+            res = parse_dtc(elm_cmd(conn["r"], conn["w"], "194233FFFF", timeout=15.0), ecu)
+            if res is None:
+                continue
+            answered = True
+            codes += res
+    finally:
+        elm_cmd(conn["r"], conn["w"], "ATST32")        # Standard wiederherstellen
+        elm_cmd(conn["r"], conn["w"], "ATAT1")
+    return codes if answered else None
+
+
+def publish_dtcs(codes):
+    mqtt.publish(topic=BASE + "/dtc", payload=str(len(codes)), retain=True)
+    mqtt.publish(topic=BASE + "/dtc/attr", retain=True, payload=json.dumps({
+        "codes": [dtc_label(c) for c in codes],
+        "details": codes,
+        "gelesen": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }))
+
+
 def polling_enabled():
     try:
         return state.get(POLL_SWITCH) != "off"
@@ -205,6 +295,12 @@ def discovery():
         if dc:
             cfg["device_class"] = dc
         mqtt.publish(topic=topic, payload=json.dumps(cfg), retain=True)
+    mqtt.publish(topic="homeassistant/sensor/sprinter/dtc/config", retain=True,
+                 payload=json.dumps({"name": "Fehlercodes gespeichert", "unique_id": "sprinter_dtc",
+                                     "state_topic": BASE + "/dtc",
+                                     "json_attributes_topic": BASE + "/dtc/attr",
+                                     "icon": "mdi:engine-outline",
+                                     "availability_topic": BASE + "/status", "device": dev}))
     mqtt.publish(topic="homeassistant/binary_sensor/sprinter/awake/config", retain=True,
                  payload=json.dumps({"name": "Fahrzeug wach", "unique_id": "sprinter_awake",
                                      "state_topic": BASE + "/awake",
@@ -225,6 +321,7 @@ def sprinter_poll():
     awake = None
     engine_on = False
     last_slow = 0
+    last_dtc = 0
     paused = False
 
     try:
@@ -299,11 +396,18 @@ def sprinter_poll():
                     mqtt.publish(topic=BASE + "/awake", payload="ON" if new_awake else "OFF", retain=True)
                     if new_awake:
                         last_slow = 0
+                        last_dtc = 0
                     else:
                         engine_on = False
                 awake = new_awake
                 if awake and "slow" in groups:
                     last_slow = now
+                if awake and now - last_dtc >= DTC_S:
+                    codes = read_dtcs(conn)
+                    if codes is not None:
+                        publish_dtcs(codes)
+                        log.info("sprinter27145: %d Fehlercode(s) %s" % (len(codes), [dtc_label(c) for c in codes]))
+                    last_dtc = now
                 task.sleep(FAST_S if awake else PROBE_S)
 
             except Exception as e:
@@ -317,7 +421,3 @@ def sprinter_poll():
     finally:
         if conn["w"] is not None:
             elm_close(conn["w"])
-
-
-# TODO (Todo 7): Fehlercodes via 19 42 33 FF FF an 0x58 / 0x5D –
-# Decoder folgt nach dem Test am Fahrzeug (DTC-Format J2012 oder J1939)
