@@ -1,0 +1,8 @@
+# HA-Package: Pause-Schalter für das Polling
+# Ablage: /config/packages/sprinter_wwh_obd.yaml
+# aus = pyscript trennt die TCP-Verbindung (WiCAN frei für PC-Tests)
+
+input_boolean:
+  sprinter_polling:
+    name: Sprinter Polling
+    icon: mdi:car-connected

@@ -1,0 +1,48 @@
+# Beispiel: Polling nur bei laufendem Motor (D+ = Lichtmaschine lädt)
+#
+# Hintergrund: Der Sprinter VS30 antwortet nur bei Kl. 15 (Zündstufe 2).
+# Mit dem Startknopf verstummt das Motor-SG sofort, Diagnose-Anfragen wecken es
+# nicht. Polling ausserhalb dieser Zeit ist also nutzlos.
+#
+# D+-Quelle anpassen: hier ein binary_sensor vom Aufbau-Steuergerät (EBL).
+# Manuell (z.B. Zündung an, Motor aus) lässt sich der Schalter von Hand
+# einschalten; die Automation schaltet nur bei einem D+-Wechsel bzw. HA-Start.
+
+alias: Sprinter Polling mit D+
+description: Polling nur bei laufendem Motor, Endwerte 3 min nach Abstellen
+mode: restart
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.d_plus          # <- eigene D+-Entität
+    to: "on"
+    id: an
+  - trigger: state
+    entity_id: binary_sensor.d_plus
+    to: "off"
+    for: "00:03:00"
+    id: aus
+  - trigger: homeassistant
+    event: start
+    id: start
+actions:
+  - choose:
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: an
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: start
+                  - condition: state
+                    entity_id: binary_sensor.d_plus
+                    state: "on"
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.sprinter_polling
+    default:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.sprinter_polling
