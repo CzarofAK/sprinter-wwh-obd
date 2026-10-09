@@ -225,17 +225,26 @@ def sprinter_poll():
     awake = None
     engine_on = False
     last_slow = 0
+    paused = False
 
     try:
         while True:
             if not polling_enabled():
-                if conn["w"] is not None:
-                    elm_close(conn["w"])
-                    conn["w"] = None
-                    mqtt.publish(topic=BASE + "/status", payload="offline", retain=True)
-                    log.info("sprinter27145: pausiert")
+                if not paused:
+                    # Pause: Verbindung trennen, aber Entitäten verfügbar lassen,
+                    # damit die letzten (retained) Werte sichtbar bleiben
+                    if conn["w"] is not None:
+                        elm_close(conn["w"])
+                        conn["w"] = None
+                    mqtt.publish(topic=BASE + "/status", payload="online", retain=True)
+                    mqtt.publish(topic=BASE + "/awake", payload="OFF", retain=True)
+                    awake = None
+                    engine_on = False
+                    paused = True
+                    log.info("sprinter27145: pausiert (letzte Werte bleiben)")
                 task.sleep(10)
                 continue
+            paused = False
 
             try:
                 if conn["w"] is None:

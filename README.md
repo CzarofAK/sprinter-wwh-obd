@@ -20,7 +20,8 @@ OBD-Buchse ── WiCAN (ELM327-Emulation, TCP 23) ── pyscript in HA ── 
 
 * **Wach:** schnelle Werte alle 5 s, langsame alle 60 s, Motorwerte nur bei Drehzahl > 0
 * **Schlafend:** Weckprobe (F442 an 0x58) alle 120 s
-* **Pausiert:** TCP-Verbindung getrennt, `sprinter/status = offline`
+* **Pausiert:** TCP-Verbindung getrennt, `sprinter/awake = OFF`; die Entitäten bleiben verfügbar und zeigen die letzten Werte (z.B. Tank/AdBlue beim Abstellen)
+* **WiCAN nicht erreichbar:** `sprinter/status = offline`, Entitäten «nicht verfügbar»
 
 Der WiCAN nimmt nur **eine** TCP-Verbindung an. Für Tests am PC das Polling pausieren.
 
@@ -149,3 +150,7 @@ Löschen (`14 FF FF 33`) wird mit `54` quittiert, wirkt am Motor-SG aber nicht �
 
 * [wican-fw Issue #298](https://github.com/meatpiHQ/wican-fw/issues/298) – EU-Sprinter und ISO 27145
 * Normen: ISO 27145 (WWH-OBD), ISO 15765-4 (CAN-Diagnose), ISO 14229 (UDS), SAE J1979 (PID-Formeln), SAE J2012-DA (DTC)
+
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE). Nutzung auf eigenes Risiko: Das Skript sendet nur lesende Diagnose-Anfragen (`22 F4xx`), trotzdem gilt: Am Fahrzeug-CAN nur mit Verstand arbeiten.
