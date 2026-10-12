@@ -2,6 +2,12 @@
 
 Fahrzeugdaten eines Mercedes Sprinter VS30 (Euro VI) per **WWH-OBD / ISO 27145** lokal in Home Assistant – mit einem WiCAN als ELM327-Server, einem pyscript und MQTT-Discovery. Kein Cloud-Dienst, kein WAN-Verkehr.
 
+> [!WARNING]
+> **Sicherheit & Haftung / Safety & liability** – Privates Hobbyprojekt, bereitgestellt «wie besehen», Nutzung **auf eigene Gefahr**.
+> Das Skript sendet Diagnose-Anfragen auf den **Fahrzeug-CAN-Bus** über die OBD-Buchse. Auch rein lesende Anfragen können Steuergeräte wachhalten (Starterbatterie leer), Fehlerspeichereinträge erzeugen oder bei Fehlern im Adapter den Bus stören.
+> Nicht während der Fahrt testen oder ändern. Keine Fahrzeug- oder Sicherheitsfunktion von diesen Werten abhängig machen. Eingriffe in die Fahrzeugelektronik können Garantie und Betriebserlaubnis berühren.
+> Details: [DISCLAIMER.md](DISCLAIMER.md) (DE/EN).
+
 > **WWH-OBD** = World-Wide Harmonized On-Board Diagnostics (UNECE GTR Nr. 5), technisch ISO 27145. Nachfolger von OBD-II/EOBD: UDS-Service `22 F4xx` statt Mode `01 xx`.
 
 ## Warum
@@ -157,4 +163,4 @@ Löschen (`14 FF FF 33`) wird mit `54` quittiert, wirkt am Motor-SG aber nicht �
 
 ## Lizenz
 
-MIT, siehe [LICENSE](LICENSE). Nutzung auf eigenes Risiko: Das Skript sendet nur lesende Diagnose-Anfragen (`22 F4xx`), trotzdem gilt: Am Fahrzeug-CAN nur mit Verstand arbeiten.
+MIT, siehe [LICENSE](LICENSE). Nutzung auf eigene Gefahr – siehe [DISCLAIMER.md](DISCLAIMER.md).
