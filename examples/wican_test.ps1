@@ -4,7 +4,7 @@
 # telnet überschreibt dann die Antworten. Dieses Skript wartet pro Befehl auf
 # den Prompt '>' und gibt jede Antwort auf einer Zeile aus.
 #
-# Vorher in HA das Polling pausieren (input_boolean.sprinter_polling aus,
+# Vorher in HA das Polling pausieren (input_boolean.vehicle_obd_polling aus,
 # D+-Automation deaktivieren): Der WiCAN nimmt nur EINE TCP-Verbindung an.
 #
 # Beispiele:
