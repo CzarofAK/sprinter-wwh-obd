@@ -145,7 +145,7 @@ A, B, … = Datenbytes nach `62 F4 xx`. «Motor» = nur bei laufendem Motor abge
 
 Antwort: `59 42` · Gruppe · Status-Maske · Severity-Maske · Format · je Eintrag 5 Byte (Severity, DTC High, DTC Mid, Failure-Type, Status). DTC High: Bit 7–6 Buchstabe (P/C/B/U), Bit 5–4 erste Ziffer.
 
-**Sensor «Fehlercodes gespeichert»** (`sprinter/dtc`): Anzahl aller Codes; Attribute `codes` (z.B. `P13E7 (gespeichert)`), `details` (SG, Status-Bits, Severity, FTB) und `gelesen` (Zeitpunkt). Status-Bits: `aktiv` = testFailed (0x01), `ausstehend` = pending (0x04), `gespeichert` = confirmed (0x08), `MIL` (0x80). Der bestehende Sensor «Fehlercodes Anzahl» (F401) zählt nur MIL-relevante Codes.
+**Sensor «Stored DTCs»** (`sprinter/dtc`): Anzahl aller Codes; Attribute `codes` (z.B. `P13E7 (gespeichert)`), `details` (SG, Status-Bits, Severity, FTB) und `gelesen` (Zeitpunkt). Status-Bits: `aktiv` = testFailed (0x01), `ausstehend` = pending (0x04), `gespeichert` = confirmed (0x08), `MIL` (0x80). Der bestehende Sensor «DTC count» (F401) zählt nur MIL-relevante Codes.
 
 Löschen (`14 FF FF 33`) wird mit `54` quittiert, wirkt am Motor-SG aber nicht – nicht implementiert.
 
