@@ -19,7 +19,7 @@ Der EU-Sprinter VS30 antwortet **nicht** auf klassisches OBD-II (`0100` auf 11 b
 ```
 OBD-Buchse ── WiCAN (ELM327-Emulation, TCP 23) ── pyscript in HA ── MQTT-Discovery ── Gerät «Sprinter»
                                                       ▲
-                                    input_boolean.sprinter_polling (Pause)
+                                    input_boolean.vehicle_obd_polling (Pause)
                                                       ▲
                                        Automation D+ (Motor läuft)
 ```

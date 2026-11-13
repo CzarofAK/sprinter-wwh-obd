@@ -3,6 +3,6 @@
 # aus = pyscript trennt die TCP-Verbindung (WiCAN frei für PC-Tests)
 
 input_boolean:
-  sprinter_polling:
-    name: Sprinter Polling
+  vehicle_obd_polling:
+    name: Vehicle OBD polling
     icon: mdi:car-connected

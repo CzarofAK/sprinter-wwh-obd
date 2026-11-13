@@ -41,8 +41,8 @@ actions:
         sequence:
           - action: input_boolean.turn_on
             target:
-              entity_id: input_boolean.sprinter_polling
+              entity_id: input_boolean.vehicle_obd_polling
     default:
       - action: input_boolean.turn_off
         target:
-          entity_id: input_boolean.sprinter_polling
+          entity_id: input_boolean.vehicle_obd_polling
